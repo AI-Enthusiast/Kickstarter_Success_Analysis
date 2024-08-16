@@ -1,0 +1,214 @@
+---
+title: "What Makes Success? | A Meta Analysis of Kickstarter Campaigns"
+subtitle: "DATA501 Foundations of Data Science Using R"
+author: "Cormac Dacker"
+date: "`r Sys.Date()`"
+output:
+    html_document:
+        toc: true
+        toc_depth: 2
+---
+
+
+-----------------------------------------------------
+The dataset: Kickstarter
+This dataset has been provided by Jonathan Leland via ICPSR. Please read through the Kickstarter Codebook to better understand the features in the dataset. Then conduct an analysis to, at minimum, answer the following questions of interest:
+Primary questions of interest
+• Which categories contain the greatest quantity of campaigns? The least?
+• Is there any time trend in terms of the number of campaigns launched?
+• Which project categories were tied to the most successful campaigns? The most unsuccessful campaigns? (And how do you define “successful”?)
+-----------------------------------------------------
+```{r setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(GGally)
+library(ggplot2)
+library(gridExtra)
+```
+```{r, echo=FALSE, warning=FALSE}
+thePath= 'C:/Users/corma/DataspellProjects/Willamette_University/501 Data R/Final/Dataset/'
+kickstarter_df = read_csv(paste0(thePath, "kickstarter.csv"))
+# drop all unnecessary columns
+kickstarter_df = kickstarter_df[, -c(1:3,5,7,10,11,14,15,16,21)] # go from 21 cols to 10
+# clean up column
+kickstarter_df = kickstarter_df %>%
+  mutate(CATEGORY = as.factor(CATEGORY),
+         SUBCATEGORY = as.factor(SUBCATEGORY),
+         PROJECT_PAGE_LOCATION_NAME = as.factor(PROJECT_PAGE_LOCATION_NAME),
+         PROJECT_PAGE_LOCATION_STATE = as.factor(PROJECT_PAGE_LOCATION_STATE),
+         STATE = as.factor(STATE),
+         LAUNCHED_DATE = as.Date(LAUNCHED_DATE, format = "%m/%d/%Y"),
+         DEADLINE_DATE = as.Date(DEADLINE_DATE, format = "%m/%d/%Y"),
+         GOAL_IN_USD = as.numeric(gsub("[$,]", "", GOAL_IN_USD)),
+         PLEDGED_IN_USD = as.numeric(gsub("[$,]", "", PLEDGED_IN_USD)),
+         BACKERS_COUNT = as.numeric(BACKERS_COUNT),
+         # AVG_DONATION = PLEDGED_IN_USD / BACKERS_COUNT,
+         GOAL_MET = ifelse(PLEDGED_IN_USD >= GOAL_IN_USD, 1, 0),
+         GOAL_EXCEEDED_BY = PLEDGED_IN_USD - GOAL_IN_USD,
+         TRUE_SUCCESS = ifelse(GOAL_MET == 1 & STATE == "successful", 1, 0))
+
+```
+
+<center>![](https://willamette.edu/offices/marketing/images/for-download/everyday-user/compass/large/compass-full-color.jpg){width="67"}</center>
+
+## ABSTRACT
+#### This project is a meta analysis of complete Kickstarter campaigns that took place in the years 2009 - 2020. The goal was to analyze Kickstarter as a platform, and discover what makes a successful campaign. The analysis focused on the following questions: Which categories contain the greatest and the least quantity of campaigns? What are the trends of successful campaigns over time? Which project categories were tied to the most and least successful campaigns? But the most important question was how to define success. While Kickstarter itself has an indicator of whether the campaign's goal was reached, it is important that we quantify how successful a campaign was in comparison to other successful campaigns. This was the core of our investigation. The results of this analysis were that successful campaigns often had a lower goal, and that the category could greatly impact the trends within the platform. This could lead to intriguing future research into the economic trends of the categories that are most successful on Kickstarter.
+
+## INTRODUCTION
+#### Kickstarter is a crowdfunding platform that allows users to create campaigns to raise money for a variety of projects. The platform has been around since 2009 and has seen over 500,000 campaigns launched. The goal of this project is to analyze the Kickstarter dataset to better understand the platform and the campaigns that are launched on it. It is important to note that when we discuss a successful campaign, we are referring to a campaign that has met or exceeded its goal. This is the definition of success that Kickstarter uses. If a campaign is not successful, the backers are not charged. This provides insight into the importance of understanding what makes a truly successful campaign set up on the platform, and how that may have changed over time.
+
+## DATA AND METHODOLOGY
+### The Data:
+#### This dataset comes to us from Jonathan Leland via ICPSR. The dataset contains 506,199 observations and 21 variables, which we will reduce to 10 variables for the purposes of this analysis. The dataset is a set of over 500,000 Kickstarter campaigns, from 2009 to 2020. It contains information about the campaign, the backers, the location of the campaign, amount pledged and asked for, the category, and the status of the campaign. There are 15 main categories campaigns can be launched under. While subcategories were provided, they were shown to not be well-defined. Generally the top subcategory is just the category, and as a result, analysis on subcategory is not of particular interest. The status of Campaigns are defined by Kickstarter as successful, failed, canceled, or suspended. For the purposes of this analysis we will focus on successful and failed campaigns. This reduces the dataset from 506,199 observations to 447,256 observations, losing us 58,943 observations. This is a loss of 11.6% of the data, and is necessary to focus the analysis on the questions of interest. Additionally, it was observed that there are successful campaigns with $0 of asking amount. This data was kept in the dataset, as it is possible that the campaign was launched with no asking amount and was therefore successful.
+
+### How do we define success?
+##### Here, successful campaigns are defined by the source, Kickstarter, as successful rather than a failed or canceled campaign. Kickstarter defines a successful campaign as one that has met or exceeded its goal. However, this does not help us determine which campaigns were more successful. To further distinguish successful campaigns from each other, we will also look at the amount pledged over the goal. We will call this the Goal Exceeded By amount. This will allow us to see which campaigns were the most successful and by how much.
+
+
+### Methodology:
+#### The methodology used in this analysis is a combination of data cleaning, data manipulation, and data visualization. The data cleaning was done in R, using the tidyverse package. The data manipulation was done in R, using the tidyverse package. The data visualization was done in R, using the ggplot2 package. The data cleaning was done to remove unnecessary columns, and to clean up the data types of the columns. The data manipulation was to create new columns that would be useful for the analysis. The data visualization is to help answer the questions of interest. We performed a variety of data visualizations and two tests to help answer the questions of interest. Our tests were a t-test, to see if there was a difference in the amount asked for between successful and unsuccessful campaigns, and a tukey test, to see if there was a difference in the amount exceeded by successful campaigns in different categories.
+
+
+## RESULTS
+```{r, echo=FALSE, warning=FALSE}
+# • Which categories contain the greatest quantity of campaigns? The least?
+most1 = kickstarter_df %>%
+  group_by(CATEGORY) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  head(5) %>%
+  ggplot(aes(x = reorder(CATEGORY, count), y = count)) +
+  geom_bar(stat = "identity", fill = "Green") +
+  labs(title = "Top 5 Categories with the Most Campaigns", x = "Category", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  # y lim to 80000
+  coord_cartesian(ylim = c(0, 80000))
+least = kickstarter_df %>%
+  group_by(CATEGORY) %>%
+  summarise(count = n()) %>%
+  arrange(count) %>%
+  head(5) %>%
+  ggplot(aes(x = reorder(CATEGORY, count), y = count)) +
+  geom_bar(stat = "identity", fill = "red") +
+  labs(title = "Bottom 5 Categories with the Least Campaigns", x = "Category", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_cartesian(ylim = c(0, 80000))
+grid.arrange(least, most1, ncol = 2)
+```
+
+#### Here we can see that the top 5 categories with the most campaigns are: Technology, Publishing, Games, Music, and Film & Video. While the bottom 5 categories with the least campaigns are: Dance, Journalism, Crafts, Theater, and Photography. This is interesting as it shows that the top 5 categories are all things that are more likely to be consumed by the general public, while the bottom 5 categories are all things that are more likely to be consumed by a niche group of people. Looking at this you might notice that this is in fact the aggregate, and as a result may not hold true today or in the future. To test this we will look at the number of campaigns launched per year.
+
+```{r, echo=FALSE, warning=FALSE}
+# • Is there any time trend in terms of the number of campaigns launched, by category?
+kickstarter_df %>%
+  mutate(LAUNCHED_DATE = as.Date(LAUNCHED_DATE, format = "%m/%d/%Y")) %>%
+  ggplot(aes(x = LAUNCHED_DATE)) +
+  geom_histogram(fill = "steelblue", bins = 100) +
+  labs(title = "Number of Campaigns Launched Over Time", x = "Date", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_wrap(~CATEGORY, ncol = 3)
+```
+
+#### From this we can immediately tell that quite a few categories had their peak around 2015 and have since decreased in campaigns launched. This is true for Crafts, Design, Fashion, Film& Video, Food, Journalism, Music, Photography, Publishing, and Technology. Interestingly, Comics has been steadily rising since the launch of the platform, while Dance has stayed fairly consistent. Theater seems to go through yearly cycles where it peaks in the summer and drops in the winter. Games has kept a roughly steady pace since 2015 where most others seem to fall off. This shows that the platform is not growing as a whole, rather, that some categories are growing while others are shrinking. It would be interesting to compare this data to other datasets within those economic sectors to see if this is a trend in the economy as a whole, or if this is a trend specific to Kickstarter.
+
+```{r, echo=FALSE, warning=FALSE}
+# Graph pledged vs asked as a dot plot
+kickstarter_df %>%
+  ggplot(aes(x = GOAL_IN_USD, y = PLEDGED_IN_USD, color=CATEGORY)) +
+  geom_point(alpha=.2) +
+  labs(title = "Pledged vs Asked", x = "Asked", y = "Pledged")+
+  # scale logorithmicly
+  scale_x_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000, 1000000, 2500000,5000000),
+                labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k", "1M", "2.5M", "5M")) +
+  scale_y_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000, 1000000, 2500000,5000000),
+                labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k", "1M", "2.5M", "5M"))+
+  # draw a dotted line at 1:1
+  geom_abline(intercept = 0, slope = 1, linetype = "dotted", color="red") +
+  geom_smooth(method='lm',se=F)
+```
+
+#### In this graphic we can see the success cutoff as a dotted line running at a 45-degree angle - the "asked" amount is the x-axis, and the "pledged" amount is the y-axis. This shows us that most campaigns are unsuccessful, as they are below the line. We can also see clear category winners and loosers in amount raised in terms of the amount asked. Comics has the worst trend line, while Dance has the best trend line. This is surprising because Dance is one of the categories with the least campaigns launched. This shows that while there are not many campaigns launched in the Dance category, they are more likely raise more than they asked for (than any other category) which can be interpreted as a metric of success. Comics on the other hand, despite the steady increase in popularity (number of campaigns launched) show worst trend line of any other category. This shows that while there are many campaigns launched in the Comics category, they are less likely to raise more than they asked for (than any other category) which can be interpreted as less successful. Lastly we can clearly see that all trendlines cross the success cutoff before one thousand dollars, except for Dance. This shows good success when asking for less money, especially when the amount requested is below one thousand dollars. This suggests that asking for less money increases chances of success, and may even increase the amount of money earned in the end.
+
+```{r, echo=FALSE, warning=FALSE}
+
+successful_campaigns = kickstarter_df %>%
+  filter(STATE == "successful", GOAL_MET == 1) %>% arrange(desc(GOAL_EXCEEDED_BY))
+unsuccessful_campaigns = kickstarter_df %>% filter(STATE == "failed")
+# kickstater = 506199, 13, successful = 194455, 13, unsuccessful = 311744, 13 (failed, canceled, suspended)
+
+# success_mean = successful_campaigns %>% summarise(mean = mean(GOAL_EXCEEDED_BY))
+# unsuccess_mean = unsuccessful_campaigns %>% summarise(mean = mean(GOAL_EXCEEDED_BY))
+
+successful_campaigns_dist = successful_campaigns %>%
+  select(GOAL_IN_USD) %>%
+  # summary(avg = mean(GOAL_IN_USD)) %>%
+  ggplot(aes(x = GOAL_IN_USD)) +
+  geom_histogram(fill = "steelblue", bins = 100) +
+  # geom_vline(aes(xintercept = success_mean), color = "red", linetype = "dotted") +
+  labs(title = "Distribution of Amount Requested for Successful Campaigns", x = "Amount", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  # xlim(0, 500000) + ylim(0, 60000) +
+  # scale logorithmicly
+  scale_x_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000),
+                labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k"))
+unsuccessful_campaigns_dist = unsuccessful_campaigns %>%
+  select(GOAL_IN_USD) %>%
+  ggplot(aes(x = GOAL_IN_USD)) +
+  geom_histogram(fill = "steelblue", bins = 100) +
+  # geom_vline(aes(xintercept = unsuccess_mean), color = "red", linetype = "dotted") +
+  labs(title = "Distribution of Amount Requested for Unsuccessful Campaigns", x = "Amount", y = "Count") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  # xlim(0, 500000) + ylim(0, 60000) +
+  # scale logorithmicly
+  scale_x_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000),
+                labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k"))
+# hell yeah, looks like a normal distribution
+# lets perform the t test
+t.test(successful_campaigns$GOAL_IN_USD, unsuccessful_campaigns$GOAL_IN_USD, alternative = "two.sided", conf.level = 0.95)
+grid.arrange(successful_campaigns_dist, unsuccessful_campaigns_dist, ncol = 2)
+# p-value < 2.2e-16, mean of y is greater than mean of x
+# mean of x mean of y
+# 8972.164 58377.714
+# alternative hypothesis: true difference in means is not equal to 0
+```
+
+#### But what is the average amount that these successful campaigns are requesting, and how does that compare to the average amount requested by unsuccessful campaigns? Immediately we can see some clear differences between the two distributions. While both being normal, the distribution of successful campaigns is much more narrow than the distribution of unsuccessful campaigns. This means that the average amount requested by successful campaigns is much closer to the median amount requested by successful campaigns than the average amount requested by unsuccessful campaigns is to the median amount requested by unsuccessful campaigns. Looking at the distribution of the amount requested by successful campaigns, we can see that the average amount requested is around $9,000. The distribution of the amount requested by unsuccessful campaigns, appears to be roughly the same. We performed a t-test. We are using a T-test because we are comparing the means of two groups that are approximately normally distributed. For this Test my H0 is that the average amount requested by successful campaigns is the same as the average amount requested by unsuccessful campaigns. My Ha is that the average amount requested by successful campaigns is not the same as the average amount requested by unsuccessful campaigns. My p-value is less than 0.05 (< 2.2e-16), so I reject the null hypothesis. This means that the average amount requested by successful campaigns is not the same as the average amount requested by unsuccessful campaigns. This shows that the amount requested by successful campaigns is less than the amount requested by unsuccessful campaigns.
+
+```{r, echo=FALSE, warning=FALSE}
+t_df = kickstarter_df %>% select(-SUBCATEGORY)
+# let's do a tukey test to see which categories are different in terms of amount exceeded
+my_model = aov(GOAL_EXCEEDED_BY ~ CATEGORY, data = kickstarter_df)
+TukeyHSD(my_model, conf.level = 0.95)
+# graph the top 5 and bottom 5 categories with avg amount exceeded
+top_5 = successful_campaigns %>%
+  group_by(CATEGORY) %>%
+  summarise(avg = median(GOAL_EXCEEDED_BY)) %>%
+  arrange(desc(avg)) %>%
+  head(5) %>%
+  ggplot(aes(x = reorder(CATEGORY, avg), y = avg)) +
+  geom_bar(stat = "identity", fill = "Green") +
+  labs(title = "Top 5 Categories with the Most Amount Exceeded", x = "Category", y = "Amount Exceeded") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  # y lim to 80000
+  coord_cartesian(ylim = c(0, 6000))
+bottom_5 = successful_campaigns %>%
+  group_by(CATEGORY) %>%
+  summarise(avg = median(GOAL_EXCEEDED_BY)) %>%
+  arrange(avg) %>%
+  head(5) %>%
+  ggplot(aes(x = reorder(CATEGORY, avg), y = avg)) +
+  geom_bar(stat = "identity", fill = "red") +
+  labs(title = "Bottom 5 Categories with the Least Amount Exceeded", x = "Category", y = "Amount Exceeded") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  coord_cartesian(ylim = c(0, 6000))
+grid.arrange(bottom_5, top_5, ncol = 2)
+```
+
+#### Finally, let's perform a Tukey test to see if there is a difference in the amount exceeded by successful campaigns in different categories. For this test my Ha is that there is a difference in the amount exceeded by successful campaigns in different categories. My H0 is that there is no difference in the amount exceeded by successful campaigns in different categories. There are several category is that force us to reject the null hypothesis, but those that appear the most are Technology, Film & Video, Journalism, Games, and Theater. This is interesting because it shows that there is a difference in the amount exceeded by successful campaigns in different categories. Digging deeper we can see that these are because they aligned on either end of the extreme. That is: either they exceed their goal, but not by a significant amount, or they exceed their goal by a significant amount. So despite Dance having the best trend line of asked-to-pledged, it is not the category that exceeds its goal by the most.
+
+## CONCLUSION
+#### It is clear that the top 5 categories with the most campaigns launched are: Technology, Publishing, Games, Music, and Film & Video. While the bottom 5 categories with the least campaigns are: Dance, Journalism, Crafts, Theater, and Photography. This is interesting despite Dance having the least number of campaigns start in the category, it has the best trend line of asked-to-pledged. This shows that while there are not many campaigns launched in the Dance category, they are more likely raise more than they asked for (than any other category) which can be interpreted as more likely tobe successful. We also saw that the average amount requested by successful campaigns is less than the average amount requested by unsuccessful campaigns. Finally, we saw that there is a difference in the amount exceeded by successful campaigns in different categories. Digging deeper we cans see the dominance of the category Technology in the most amount exceeded by successful campaigns. Despite Dance having a greater percentage of successful campaigns, it is not the category that exceeds its goal by the most, thus it is not the most successful category, in our understanding of success.
+
+## AUTHOR'S NOTE
+#### I am aware that this work is not up to my usual calibar, and I want it to be known that it is not up to my own standards either. After our final class, I came down with a case of RSV, and have been battling minor pneumonia as a result. Under the circumstances, I wanted to ensure that I submitted a complete project to the best of my abilities, and since I had already put a significant amount of work into it, I wanted to see it through. I hope that you can understand, and see the potential in the work that I have completed and submitted previously in this course. Thank you for a great semester, and I am excited to take Survival Analysis in the Spring.
