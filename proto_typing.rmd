@@ -1,0 +1,367 @@
+```{r}
+library(gridExtra)
+library(tidyverse)
+library(GGally)
+```
+
+```{r}
+thePath= paste0(getwd(), "/501 Data R/Final/Dataset/")
+kickstarter_df = read_csv(paste0(thePath, "kickstarter.csv"))
+```
+```{r}
+
+# drop all unnecessary columns
+kickstarter_df = kickstarter_df[, -c(1:3,5,7,10,11,14,15,16,21)] # go from 21 cols to 10
+```
+```{r}
+# clean up column
+kickstarter_df = kickstarter_df %>%
+  mutate(CATEGORY = as.factor(CATEGORY),
+         SUBCATEGORY = as.factor(SUBCATEGORY),
+         PROJECT_PAGE_LOCATION_NAME = as.factor(PROJECT_PAGE_LOCATION_NAME),
+         PROJECT_PAGE_LOCATION_STATE = as.factor(PROJECT_PAGE_LOCATION_STATE),
+         STATE = as.factor(STATE),
+         LAUNCHED_DATE = as.Date(LAUNCHED_DATE, format = "%m/%d/%Y"),
+         DEADLINE_DATE = as.Date(DEADLINE_DATE, format = "%m/%d/%Y"),
+         GOAL_IN_USD = as.numeric(gsub("[$,]", "", GOAL_IN_USD)),
+         PLEDGED_IN_USD = as.numeric(gsub("[$,]", "", PLEDGED_IN_USD)),
+         BACKERS_COUNT = as.numeric(BACKERS_COUNT),
+         # AVG_DONATION = PLEDGED_IN_USD / BACKERS_COUNT,
+         GOAL_MET = ifelse(PLEDGED_IN_USD >= GOAL_IN_USD, 1, 0),
+         GOAL_EXCEEDED_BY = PLEDGED_IN_USD - GOAL_IN_USD,
+         TRUE_SUCCESS = ifelse(GOAL_MET == 1 & STATE == "successful", 1, 0))
+```
+```{r}
+dim(kickstarter_df) # 506199 - 447256 = 58943
+
+# what is the dim of the df whre status is successful and failed
+dim(kickstarter_df %>% filter(STATE == "failed"))
+# 194458 + 252798 = 447256
+```
+```{r}
+successful_campaigns = kickstarter_df %>%
+  filter(STATE == "successful", GOAL_MET == 1) %>% arrange(desc(GOAL_EXCEEDED_BY))
+unsuccessful_campaigns = kickstarter_df %>% filter(STATE == "failed")
+```
+```{r}
+dim(kickstarter_df)
+dim(successful_campaigns)
+```
+
+
+```{r}
+# skim(kickstarter_df)
+# kickstarter_df %>% select(-SUBCATEGORY, -PROJECT_PAGE_LOCATION_NAME, -PROJECT_PAGE_LOCATION_STATE) %>% ggpairs()
+```
+```{r}
+summary(kickstarter_df)
+```
+```{r}
+names(kickstarter_df)
+#  [1] "CATEGORY"                    "SUBCATEGORY"
+#  [3] "PROJECT_PAGE_LOCATION_NAME"  "PROJECT_PAGE_LOCATION_STATE"
+#  [5] "LAUNCHED_DATE"               "DEADLINE_DATE"
+#  [7] "GOAL_IN_USD"                 "PLEDGED_IN_USD"
+#  [9] "BACKERS_COUNT"               "STATE"
+# [11] "AVG_DONATION"                "GOAL_MET"
+# [13] "GOAL_EXCEEDED_BY"            "TRUE_SUCCESS"
+```
+```{r}
+# • Which categories contain the greatest quantity of campaigns? The least?
+most1 = kickstarter_df %>%
+  group_by(CATEGORY) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+    head(5) %>%
+      ggplot(aes(x = reorder(CATEGORY, count), y = count)) +
+        geom_bar(stat = "identity", fill = "Green") +
+          labs(title = "Top 5 Categories with the Most Campaigns", x = "Category", y = "Count") +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        # y lim to 80000
+        coord_cartesian(ylim = c(0, 80000))
+least = kickstarter_df %>%
+        group_by(CATEGORY) %>%
+        summarise(count = n()) %>%
+        arrange(count) %>%
+        head(5) %>%
+        ggplot(aes(x = reorder(CATEGORY, count), y = count)) +
+        geom_bar(stat = "identity", fill = "red") +
+        labs(title = "Bottom 5 Categories with the Least Campaigns", x = "Category", y = "Count") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+        coord_cartesian(ylim = c(0, 80000))
+grid.arrange(least, most1, ncol = 2)
+```
+```{r}
+# lets show the top 5 in green and the bottom 5 in red
+
+```
+```{r}
+# • Is there any time trend in terms of the number of campaigns launched?
+kickstarter_df %>%
+  mutate(LAUNCHED_DATE = as.Date(LAUNCHED_DATE, format = "%m/%d/%Y")) %>%
+    ggplot(aes(x = LAUNCHED_DATE)) +
+      geom_histogram(fill = "steelblue", bins = 100) +
+        labs(title = "Number of Campaigns Launched Over Time", x = "Date", y = "Count") +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+# • Is there any time trend in terms of the number of campaigns launched, by category?
+kickstarter_df %>%
+  mutate(LAUNCHED_DATE = as.Date(LAUNCHED_DATE, format = "%m/%d/%Y")) %>%
+    ggplot(aes(x = LAUNCHED_DATE)) +
+      geom_histogram(fill = "steelblue", bins = 100) +
+        labs(title = "Number of Campaigns Launched Over Time", x = "Date", y = "Count") +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+            facet_wrap(~CATEGORY, ncol = 3)
+```
+```{r}
+# • What is the average amount of money requested by category?
+# kickstarter_df %>%
+#   group_by(CATEGORY) %>%
+#     summary(avg_requested = mean(GOAL_IN_USD)) %>%
+#       arrange(desc(avg_requested)) %>%
+#         ggplot(aes(x = reorder(CATEGORY, avg_requested), y = avg_requested)) +
+#           geom_bar(stat = "identity", fill = "steelblue") +
+#             labs(title = "Average Amount of Money Requested by Category", x = "Category", y = "Amount") +
+#               theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+# • What is the average amount of money made by category? only include state =successful
+# kickstarter_df %>%
+#   filter(STATE == "successful") %>%
+#     group_by(CATEGORY) %>%
+#       ggplot(aes(x = CATEGORY, y = PLEDGED_IN_USD)) +
+#         geom_boxplot(fill = "steelblue") +
+#           labs(title = "Average Amount of Money Made by Category", x = "Category", y = "Amount") +
+#             theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+
+# # what are the top subcats for each cat
+# # takes a cat and returns it's top sucats 15 max graphed
+# top_subcats = function(cat){
+#   kickstarter_df %>%
+#     filter(CATEGORY == cat) %>%
+#       group_by(SUBCATEGORY) %>%
+#         summarise(count = n(), success_rate = mean(TRUE_SUCCESS)) %>%
+#           arrange(desc(count)) %>%
+#             head(15) %>%
+#               ggplot(aes(x = reorder(SUBCATEGORY, count), y = count, fill=success_rate)) +
+#                 geom_bar(stat = "identity") +
+#                   labs(title = paste("Top 15 Subcategories for", cat), x = "Subcategory", y = "Count") +
+#                     theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# }
+```
+```{r}
+# # for each cat, what are the top subcats
+# # unique(kickstarter_df$CATEGORY)
+# # [1] Film & Video Technology   Publishing   Art          Journalism   Design       Comics       Games
+# #  [9] Music        Food         Fashion      Crafts       Theater      Photography  Dance
+# # 15 Levels: Art          Comics       Crafts       Dance        Design       Fashion      ... Theater
+# # library(gridExtra)
+# file_n_vid = top_subcats("Film & Video")
+# tech = top_subcats("Technology")
+# publishing = top_subcats("Publishing")
+# art = top_subcats("Art")
+# journalism = top_subcats("Journalism")
+# design = top_subcats("Design")
+# comics = top_subcats("Comics")
+# games = top_subcats("Games")
+# music = top_subcats("Music")
+# food = top_subcats("Food")
+# fashion = top_subcats("Fashion")
+# crafts = top_subcats("Crafts")
+# theater = top_subcats("Theater")
+# photography = top_subcats("Photography")
+# dance = top_subcats("Dance")
+# #
+# # for (cat in unique(kickstarter_df$CATEGORY)){
+# #   top_subcats(cat)
+# # }
+```
+```{r}
+
+# Graph pledged vs asked as a dot plot
+kickstarter_df %>%
+        ggplot(aes(x = GOAL_IN_USD, y = PLEDGED_IN_USD, color=CATEGORY)) +
+        geom_point(alpha=.2) +
+        labs(title = "Pledged vs Asked", x = "Asked", y = "Pledged")+
+        # scale logorithmicly
+        scale_x_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000, 1000000, 2500000,5000000),
+                      labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k", "1M", "2.5M", "5M")) +
+        scale_y_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000, 1000000, 2500000,5000000),
+                      labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k", "1M", "2.5M", "5M"))+
+        # draw a dotted line at 1:1
+        geom_abline(intercept = 0, slope = 1, linetype = "dotted", color="red") +
+        geom_smooth(method='lm',se=F)
+
+# scale (below 1k, 1-10,10-25,25-100,100-250,250+)
+# scale_x_continuous(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000, 1000000, 2500000,5000000, 10000000),
+#                    labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k", "1M", "2.5M", "5M", "10M")) +
+#     scale_y_continuous(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000, 1000000, 2500000,5000000, 10000000),
+#                          labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k", "1M", "2.5M", "5M", "10M")) +
+#   coord_cartesian(xlim = c(0, 5000000), ylim = c(0, 5000000))
+```
+```{r}
+# lets perform some tests
+# • Is there a difference in the amount of money requested by successful and unsuccessful campaigns? (t-test)
+# • Is there a difference in the amount of money made by successful and unsuccessful campaigns? (t-test)
+# • Is there a difference in the amount of money made by successful and unsuccessful campaigns, by category? (t-test)
+
+# since t test requires normality we will check for normality first
+# lest see the distribution of amount requested and percent successful
+
+
+
+```
+```{r}
+successful_campaigns_dist = successful_campaigns %>%
+        select(GOAL_IN_USD) %>%
+        ggplot(aes(x = GOAL_IN_USD)) +
+        geom_histogram(fill = "steelblue", bins = 100) +
+        labs(title = "Distribution of Amount Requested for Successful Campaigns", x = "Amount", y = "Count") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        # xlim(0, 500000) + ylim(0, 60000) +
+          # scale logorithmicly
+        scale_x_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000),
+                      labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k"))
+```
+```{r}
+unsuccessful_campaigns_dist = unsuccessful_campaigns %>%
+        select(GOAL_IN_USD) %>%
+        ggplot(aes(x = GOAL_IN_USD)) +
+        geom_histogram(fill = "steelblue", bins = 100) +
+        labs(title = "Distribution of Amount Requested for Unsuccessful Campaigns", x = "Amount", y = "Count") +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        # xlim(0, 500000) + ylim(0, 60000) +
+        # scale logorithmicly
+        scale_x_log10(breaks = c(0, 1000, 10000, 25000, 100000, 250000, 500000),
+                      labels = c("0", "1k", "10k", "25k", "100k", "250k", "500k"))
+
+```
+```{r}
+grid.arrange(successful_campaigns_dist, unsuccessful_campaigns_dist, ncol = 2)
+```
+```{r}
+# hell yeah, looks like a normal distribution
+# lets perform the t test
+t.test(successful_campaigns$GOAL_IN_USD, unsuccessful_campaigns$GOAL_IN_USD, alternative = "two.sided", conf.level = 0.95)
+# p-value < 2.2e-16, mean of y is greater than mean of x
+```
+```{r}
+# let's do a tukey test to see which categories are different in terms of amount exceeded
+my_model = aov(GOAL_EXCEEDED_BY ~ CATEGORY, data = kickstarter_df)
+TukeyHSD(my_model, conf.level = 0.95)
+```
+
+Comics-Art                23547.121364  -10263.302  57357.544 0.5436299
+Crafts-Art                21881.215280  -17149.357  60911.788 0.8531148
+Dance-Art                 24256.108440  -35917.802  84430.019 0.9900436
+Design-Art                21244.653407   -4528.894  47018.200 0.2490436
+Fashion-Art               17297.939242  -10389.332  44985.211 0.7225691
+Film & Video-Art         -45549.118615  -68487.070 -22611.167 0.0000000
+Food-Art                  -9245.691592  -37504.920  19013.537 0.9988511
+Games-Art                 21251.600940   -3014.295  45517.497 0.1652496
+Journalism-Art           -39131.365272  -91517.941  13255.211 0.4162815
+Music-Art                 19200.939157   -4510.902  42912.780 0.2768915
+Photography-Art           22877.329673  -15269.435  61024.094 0.7782608
+Publishing-Art             9608.707034  -15107.370  34324.784 0.9930086
+Technology-Art           -41971.713242  -67575.495 -16367.932 0.0000028
+Theater-Art                9076.726587  -29419.932  47573.386 0.9999755
+Crafts-Comics             -1665.906084  -46233.176  42901.364 1.0000000
+Dance-Comics                708.987076  -63195.281  64613.255 1.0000000
+Design-Comics             -2302.467958  -35875.249  31270.313 1.0000000
+Fashion-Comics            -6249.182123  -41312.567  28814.202 0.9999993
+Film & Video-Comics      -69096.239980 -100544.699 -37647.781 0.0000000
+Food-Comics              -32792.812957  -68309.569   2723.943 0.1081283
+Games-Comics              -2295.520424  -34725.285  30134.245 1.0000000
+Journalism-Comics        -62678.486636 -119310.715  -6046.258 0.0144931
+Music-Comics              -4346.182208  -36363.479  27671.115 1.0000000
+Photography-Comics         -669.791692  -44465.129  43125.546 1.0000000
+Publishing-Comics        -13938.414331  -46706.393  18829.564 0.9834821
+Technology-Comics        -65518.834607  -98961.465 -32076.204 0.0000000
+Theater-Comics           -14470.394777  -58570.833  29630.044 0.9988139
+Dance-Crafts               2374.893160  -64438.252  69188.038 1.0000000
+Design-Crafts              -636.561873  -39461.458  38188.334 1.0000000
+Fashion-Crafts            -4583.276038  -44704.116  35537.564 1.0000000
+Film & Video-Crafts      -67430.333895 -104433.664 -30427.004 0.0000001
+Food-Crafts              -31126.906872  -71644.568   9390.754 0.3660068
+Games-Crafts               -629.614340  -38470.473  37211.244 1.0000000
+Journalism-Crafts        -61012.580551 -120907.907  -1117.254 0.0408141
+Music-Crafts              -2680.276123  -40168.251  34807.698 1.0000000
+Photography-Crafts          996.114393  -46944.187  48936.416 1.0000000
+Publishing-Crafts        -12272.508246  -50403.615  25858.599 0.9990414
+Technology-Crafts        -63852.928522 -102565.336 -25140.522 0.0000023
+Theater-Crafts           -12804.488693  -61023.671  35414.694 0.9998960
+Design-Dance              -3011.455034  -63052.162  57029.252 1.0000000
+Fashion-Dance             -6958.169199  -67844.914  53928.576 1.0000000
+Film & Video-Dance       -69805.227056 -128684.429 -10926.026 0.0051900
+Food-Dance               -33501.800033  -94650.755  27647.155 0.8738609
+Games-Dance               -3004.507500  -62413.635  56404.620 1.0000000
+Journalism-Dance         -63387.473712 -138786.175  12011.227 0.2197789
+Music-Dance               -5055.169284  -64240.152  54129.813 1.0000000
+Photography-Dance         -1378.778768  -67679.506  64921.948 1.0000000
+Publishing-Dance         -14647.401407  -74241.824  44947.021 0.9999592
+Technology-Dance         -66227.821682 -126195.850  -6259.794 0.0149277
+Theater-Dance            -15179.381853  -81682.040  51323.276 0.9999837
+Fashion-Design            -3946.714165  -31343.283  23449.854 1.0000000
+Film & Video-Design      -66793.772022  -89379.975 -44207.569 0.0000000
+Food-Design              -30490.344999  -58464.815  -2515.875 0.0178302
+Games-Design                  6.947534  -23926.725  23940.620 1.0000000
+Journalism-Design        -60376.018678 -112609.536  -8142.502 0.0077235
+Music-Design              -2043.714250  -25415.457  21328.028 1.0000000
+Photography-Design         1632.676266  -36303.621  39568.973 1.0000000
+Publishing-Design        -11635.946373  -36025.933  12754.040 0.9551836
+Technology-Design        -63216.366649  -88505.506 -37927.227 0.0000000
+Theater-Design           -12167.926820  -50456.041  26120.188 0.9991673
+Film & Video-Fashion     -62847.057857  -87594.701 -38099.414 0.0000000
+Food-Fashion             -26543.630834  -56290.567   3203.306 0.1432725
+Games-Fashion              3953.661699  -22029.601  29936.925 0.9999999
+Journalism-Fashion       -56429.304513 -109633.154  -3225.455 0.0253119
+Music-Fashion              1902.999915  -23563.598  27369.598 1.0000000
+Photography-Fashion        5579.390431  -33682.193  44840.973 1.0000000
+Publishing-Fashion        -7689.232208  -34093.412  18714.948 0.9996916
+Technology-Fashion       -59269.652484  -86506.573 -32032.732 0.0000000
+Theater-Fashion           -8221.212655  -47822.841  31380.416 0.9999951
+Food-Film & Video         36303.427023   10917.509  61689.345 0.0001243
+Games-Film & Video        66800.719556   45951.389  87650.050 0.0000000
+Journalism-Film & Video    6417.753344  -44476.394  57311.900 1.0000000
+Music-Film & Video        64750.057772   44548.269  84951.846 0.0000000
+Photography-Film & Video  68426.448288   32356.564 104496.332 0.0000000
+Publishing-Film & Video   55157.825649   33786.224  76529.427 0.0000000
+Technology-Film & Video    3577.405373  -18814.881  25969.692 0.9999998
+Theater-Film & Video      54625.845202   18186.119  91065.571 0.0000377
+Games-Food                30497.292533    3905.396  57089.189 0.0086934
+Journalism-Food          -29885.673679  -83389.399  23618.051 0.8565706
+Music-Food                28446.630749    2359.342  54533.919 0.0177207
+Photography-Food          32123.021265   -7543.979  71790.021 0.2767814
+Publishing-Food           18854.398626   -8148.929  45857.726 0.5390494
+Technology-Food          -32726.021650  -60544.161  -4907.883 0.0058738
+Theater-Food              18322.418179  -21681.181  58326.018 0.9681381
+Journalism-Games         -60382.966212 -111889.260  -8876.672 0.0062056
+Music-Games               -2050.661784  -23748.504  19647.180 1.0000000
+Photography-Games          1625.728732  -35302.859  38554.317 1.0000000
+Publishing-Games         -11642.893907  -34433.888  11148.101 0.9233793
+Technology-Games         -63223.314182  -86974.074 -39472.555 0.0000000
+Theater-Games            -12174.874353  -49464.789  25115.040 0.9988771
+Music-Journalism          58332.304428    7084.710 109579.899 0.0097226
+Photography-Journalism    62008.694944    2685.510 121331.880 0.0302466
+Publishing-Journalism     48740.072305   -2979.837 100459.982 0.0901270
+Technology-Journalism     -2840.347971  -54990.307  49309.611 1.0000000
+Theater-Journalism        48208.091859  -11340.689 107756.873 0.2772983
+Photography-Music          3676.390516  -32890.511  40243.292 1.0000000
+Publishing-Music          -9592.232123  -31792.392  12607.928 0.9809427
+Technology-Music         -61172.652399  -84357.049 -37988.256 0.0000000
+Theater-Music            -10124.212570  -47055.979  26807.554 0.9998481
+Publishing-Photography   -13268.622639  -50494.573  23957.328 0.9971156
+Technology-Photography   -64849.042915 -102670.208 -27027.878 0.0000006
+Theater-Photography      -13800.603086  -61307.231  33706.024 0.9997003
+Technology-Publishing    -51580.420276  -75790.941 -27369.899 0.0000000
+Theater-Publishing         -531.980447  -38116.398  37052.437 1.0000000
+Theater-Technology        51048.439829   12874.396  89222.484 0.0005620
+
+
+
+#  
+```{r}
+```
