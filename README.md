@@ -1,7 +1,6 @@
 # Kickstarter_Success_Analysis
 
-This project was an analysis that was conducted on data procured from Kickstarter, with the primary aim of identifying
-which projects performed the best on this platform. The main focus of the analysis was to determine which project
-categories witnessed the highest level of activity. Alongside this, the analysis also involved investigating the project
-categories that had the highest probability of securing funding. The objective was not only to understand the trends
-within the Kickstarter community but also to identify the key factors that contribute to the success of a campaign.
+This study involved a detailed analysis of data sourced from Kickstarter, with the primary objective of identifying the
+most successful projects on the platform. The analysis focused on determining which project categories exhibited the
+highest levels of activity and exploring those with the greatest likelihood of securing funding. The aim was to
+understand the trends within the Kickstarter community and identify key factors that contribute to campaign success.
